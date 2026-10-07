@@ -4,221 +4,43 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from tools.calculator import calculate
-from tools.datetime_tool import get_current_datetime
-from tools.text_analyzer import analyze_text
+from tools.registry import (
+    TOOL_DEFINITIONS,
+    execute_tool
+)
 
 
-# --------------------------------------------------
-# Load environment variables
-# --------------------------------------------------
+# ==================================================
+# Environment
+# ==================================================
 
 load_dotenv()
 
 
-# --------------------------------------------------
-# OpenRouter client
-# --------------------------------------------------
+# ==================================================
+# OpenRouter Client
+# ==================================================
 
 client = OpenAI(
+
     base_url="https://openrouter.ai/api/v1",
-    api_key=os.getenv("OPENROUTER_API_KEY")
+
+    api_key=os.getenv(
+        "OPENROUTER_API_KEY"
+    )
 )
 
 
-# --------------------------------------------------
+# ==================================================
 # Model
-# --------------------------------------------------
+# ==================================================
 
 MODEL = "openrouter/free"
 
 
-# --------------------------------------------------
-# Tool Registry
-# --------------------------------------------------
-
-TOOL_FUNCTIONS = {
-
-    "calculate": calculate,
-
-    "get_current_datetime": get_current_datetime,
-
-    "analyze_text": analyze_text
-
-}
-
-
-# --------------------------------------------------
-# Tool Definitions
-# --------------------------------------------------
-
-TOOLS = [
-
-    {
-        "type": "function",
-
-        "function": {
-
-            "name": "calculate",
-
-            "description":
-                "Perform mathematical calculations such as "
-                "addition, subtraction, multiplication and division.",
-
-            "parameters": {
-
-                "type": "object",
-
-                "properties": {
-
-                    "a": {
-                        "type": "number",
-                        "description": "First number"
-                    },
-
-                    "b": {
-                        "type": "number",
-                        "description": "Second number"
-                    },
-
-                    "operation": {
-
-                        "type": "string",
-
-                        "enum": [
-                            "add",
-                            "subtract",
-                            "multiply",
-                            "divide"
-                        ],
-
-                        "description":
-                            "Mathematical operation to perform"
-                    }
-
-                },
-
-                "required": [
-                    "a",
-                    "b",
-                    "operation"
-                ]
-            }
-        }
-    },
-
-
-    {
-        "type": "function",
-
-        "function": {
-
-            "name": "get_current_datetime",
-
-            "description":
-                "Get the current date, time and day.",
-
-            "parameters": {
-
-                "type": "object",
-
-                "properties": {},
-
-                "required": []
-            }
-        }
-    },
-
-
-    {
-        "type": "function",
-
-        "function": {
-
-            "name": "analyze_text",
-
-            "description":
-                "Analyze text and return word count, "
-                "character count and line count.",
-
-            "parameters": {
-
-                "type": "object",
-
-                "properties": {
-
-                    "text": {
-
-                        "type": "string",
-
-                        "description":
-                            "Text that should be analyzed"
-                    }
-
-                },
-
-                "required": [
-                    "text"
-                ]
-            }
-        }
-    }
-
-]
-
-
-# --------------------------------------------------
-# Execute Tool
-# --------------------------------------------------
-
-def execute_tool(tool_name, arguments):
-
-    print(
-        f"\n[Tool requested: {tool_name}]"
-    )
-
-    print(
-        f"[Arguments: {arguments}]"
-    )
-
-
-    # Find function in registry
-
-    tool_function = TOOL_FUNCTIONS.get(
-        tool_name
-    )
-
-
-    if not tool_function:
-
-        return {
-            "error": f"Tool '{tool_name}' not found"
-        }
-
-
-    try:
-
-        result = tool_function(
-            **arguments
-        )
-
-        print(
-            f"[Tool result: {result}]"
-        )
-
-        return result
-
-
-    except Exception as error:
-
-        return {
-            "error": str(error)
-        }
-
-
-# --------------------------------------------------
+# ==================================================
 # Agent
-# --------------------------------------------------
+# ==================================================
 
 def run_agent(user_input):
 
@@ -230,22 +52,16 @@ def run_agent(user_input):
             "content": """
 You are an intelligent AI agent.
 
-You have access to several tools.
+You have access to tools.
 
-Available tools include:
+Use tools whenever they are useful.
 
-1. Calculator
-2. Current date/time
-3. Text analyzer
+Never pretend that a tool was executed.
 
-Use a tool whenever it is appropriate.
+After receiving the tool result, use that
+information to answer the user.
 
-Do not pretend that you executed a tool.
-
-After receiving tool results, use those results
-to produce the final answer.
-
-Be concise and helpful.
+If no tool is required, answer normally.
 """
         },
 
@@ -258,9 +74,9 @@ Be concise and helpful.
     ]
 
 
-    # --------------------------------------------------
-    # Agent loop
-    # --------------------------------------------------
+    # ==================================================
+    # Agent Loop
+    # ==================================================
 
     while True:
 
@@ -270,7 +86,7 @@ Be concise and helpful.
 
             messages=messages,
 
-            tools=TOOLS
+            tools=TOOL_DEFINITIONS
 
         )
 
@@ -278,25 +94,25 @@ Be concise and helpful.
         message = response.choices[0].message
 
 
-        # --------------------------------------------------
-        # No more tools required
-        # --------------------------------------------------
+        # ==================================================
+        # Final Answer
+        # ==================================================
 
         if not message.tool_calls:
 
             return message.content
 
 
-        # --------------------------------------------------
+        # ==================================================
         # Add assistant message
-        # --------------------------------------------------
+        # ==================================================
 
         messages.append(message)
 
 
-        # --------------------------------------------------
-        # Execute every requested tool
-        # --------------------------------------------------
+        # ==================================================
+        # Process Tool Calls
+        # ==================================================
 
         for tool_call in message.tool_calls:
 
@@ -310,15 +126,37 @@ Be concise and helpful.
             )
 
 
-            result = execute_tool(
-                tool_name,
-                arguments
+            print()
+            print(
+                f"[Agent → Tool: {tool_name}]"
+            )
+
+            print(
+                f"[Arguments: {arguments}]"
             )
 
 
-            # --------------------------------------------------
-            # Send tool result back to model
-            # --------------------------------------------------
+            # ------------------------------------------
+            # Dynamic Tool Registry
+            # ------------------------------------------
+
+            result = execute_tool(
+
+                tool_name,
+
+                arguments
+
+            )
+
+
+            print(
+                f"[Tool → Agent: {result}]"
+            )
+
+
+            # ------------------------------------------
+            # Send result back to LLM
+            # ------------------------------------------
 
             messages.append({
 
