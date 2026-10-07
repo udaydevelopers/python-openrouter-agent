@@ -6,17 +6,17 @@ def calculate(a: float, b: float, operation: str):
     if operation == "add":
         return a + b
 
-    elif operation == "subtract":
+    if operation == "subtract":
         return a - b
 
-    elif operation == "multiply":
+    if operation == "multiply":
         return a * b
 
-    elif operation == "divide":
+    if operation == "divide":
+
         if b == 0:
             return "Cannot divide by zero"
 
         return a / b
 
-    else:
-        return f"Unknown operation: {operation}"
+    return f"Unknown operation: {operation}"

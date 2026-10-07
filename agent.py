@@ -5,55 +5,99 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from tools.calculator import calculate
+from tools.datetime_tool import get_current_datetime
+from tools.text_analyzer import analyze_text
 
 
+# --------------------------------------------------
 # Load environment variables
+# --------------------------------------------------
+
 load_dotenv()
 
 
-# Create OpenRouter client
+# --------------------------------------------------
+# OpenRouter client
+# --------------------------------------------------
+
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=os.getenv("OPENROUTER_API_KEY")
 )
 
 
+# --------------------------------------------------
 # Model
+# --------------------------------------------------
+
 MODEL = "openrouter/free"
 
 
 # --------------------------------------------------
-# Tool definitions
+# Tool Registry
+# --------------------------------------------------
+
+TOOL_FUNCTIONS = {
+
+    "calculate": calculate,
+
+    "get_current_datetime": get_current_datetime,
+
+    "analyze_text": analyze_text
+
+}
+
+
+# --------------------------------------------------
+# Tool Definitions
 # --------------------------------------------------
 
 TOOLS = [
+
     {
         "type": "function",
+
         "function": {
+
             "name": "calculate",
-            "description": "Perform a mathematical calculation",
+
+            "description":
+                "Perform mathematical calculations such as "
+                "addition, subtraction, multiplication and division.",
+
             "parameters": {
+
                 "type": "object",
+
                 "properties": {
+
                     "a": {
                         "type": "number",
                         "description": "First number"
                     },
+
                     "b": {
                         "type": "number",
                         "description": "Second number"
                     },
+
                     "operation": {
+
                         "type": "string",
+
                         "enum": [
                             "add",
                             "subtract",
                             "multiply",
                             "divide"
                         ],
-                        "description": "Mathematical operation"
+
+                        "description":
+                            "Mathematical operation to perform"
                     }
+
                 },
+
                 "required": [
                     "a",
                     "b",
@@ -61,25 +105,115 @@ TOOLS = [
                 ]
             }
         }
+    },
+
+
+    {
+        "type": "function",
+
+        "function": {
+
+            "name": "get_current_datetime",
+
+            "description":
+                "Get the current date, time and day.",
+
+            "parameters": {
+
+                "type": "object",
+
+                "properties": {},
+
+                "required": []
+            }
+        }
+    },
+
+
+    {
+        "type": "function",
+
+        "function": {
+
+            "name": "analyze_text",
+
+            "description":
+                "Analyze text and return word count, "
+                "character count and line count.",
+
+            "parameters": {
+
+                "type": "object",
+
+                "properties": {
+
+                    "text": {
+
+                        "type": "string",
+
+                        "description":
+                            "Text that should be analyzed"
+                    }
+
+                },
+
+                "required": [
+                    "text"
+                ]
+            }
+        }
     }
+
 ]
 
 
 # --------------------------------------------------
-# Execute tool
+# Execute Tool
 # --------------------------------------------------
 
 def execute_tool(tool_name, arguments):
 
-    if tool_name == "calculate":
+    print(
+        f"\n[Tool requested: {tool_name}]"
+    )
 
-        return calculate(
-            a=arguments["a"],
-            b=arguments["b"],
-            operation=arguments["operation"]
+    print(
+        f"[Arguments: {arguments}]"
+    )
+
+
+    # Find function in registry
+
+    tool_function = TOOL_FUNCTIONS.get(
+        tool_name
+    )
+
+
+    if not tool_function:
+
+        return {
+            "error": f"Tool '{tool_name}' not found"
+        }
+
+
+    try:
+
+        result = tool_function(
+            **arguments
         )
 
-    return f"Unknown tool: {tool_name}"
+        print(
+            f"[Tool result: {result}]"
+        )
+
+        return result
+
+
+    except Exception as error:
+
+        return {
+            "error": str(error)
+        }
 
 
 # --------------------------------------------------
@@ -89,75 +223,90 @@ def execute_tool(tool_name, arguments):
 def run_agent(user_input):
 
     messages = [
+
         {
             "role": "system",
+
             "content": """
-You are a helpful AI agent.
+You are an intelligent AI agent.
 
-You have access to tools.
+You have access to several tools.
 
-When a tool is useful, use the tool instead of trying
-to perform the operation yourself.
+Available tools include:
 
-After receiving the tool result, give a clear answer
-to the user.
+1. Calculator
+2. Current date/time
+3. Text analyzer
+
+Use a tool whenever it is appropriate.
+
+Do not pretend that you executed a tool.
+
+After receiving tool results, use those results
+to produce the final answer.
+
+Be concise and helpful.
 """
         },
+
         {
             "role": "user",
+
             "content": user_input
         }
+
     ]
 
 
+    # --------------------------------------------------
     # Agent loop
+    # --------------------------------------------------
+
     while True:
 
         response = client.chat.completions.create(
+
             model=MODEL,
+
             messages=messages,
+
             tools=TOOLS
+
         )
 
 
         message = response.choices[0].message
 
 
-        # ------------------------------------------
-        # No tool required
-        # ------------------------------------------
+        # --------------------------------------------------
+        # No more tools required
+        # --------------------------------------------------
 
         if not message.tool_calls:
 
             return message.content
 
 
-        # ------------------------------------------
+        # --------------------------------------------------
         # Add assistant message
-        # ------------------------------------------
+        # --------------------------------------------------
 
         messages.append(message)
 
 
-        # ------------------------------------------
-        # Execute requested tools
-        # ------------------------------------------
+        # --------------------------------------------------
+        # Execute every requested tool
+        # --------------------------------------------------
 
         for tool_call in message.tool_calls:
 
-            tool_name = tool_call.function.name
+            tool_name = (
+                tool_call.function.name
+            )
+
 
             arguments = json.loads(
                 tool_call.function.arguments
-            )
-
-
-            print(
-                f"\n[Agent calling tool: {tool_name}]"
-            )
-
-            print(
-                f"[Arguments: {arguments}]"
             )
 
 
@@ -167,16 +316,18 @@ to the user.
             )
 
 
-            print(
-                f"[Tool result: {result}]"
-            )
+            # --------------------------------------------------
+            # Send tool result back to model
+            # --------------------------------------------------
 
+            messages.append({
 
-            # Send result back to AI
-            messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": str(result)
-                }
-            )
+                "role": "tool",
+
+                "tool_call_id":
+                    tool_call.id,
+
+                "content":
+                    json.dumps(result)
+
+            })
