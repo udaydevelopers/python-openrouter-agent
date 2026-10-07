@@ -1,36 +1,73 @@
 from agent import run_agent
 
+from memory.conversation import (
+    clear_memory
+)
+
+
+# ==================================================
+# Header
+# ==================================================
 
 print("=" * 60)
 
 print(
-    "Python OpenRouter AI Agent - V3"
+    "Python OpenRouter AI Agent - V4"
 )
 
 print("=" * 60)
 
 print()
-print("Dynamic Tool Registry")
+
+print(
+    "Features:"
+)
+
+print(
+    "✓ Multiple Tools"
+)
+
+print(
+    "✓ Dynamic Tool Registry"
+)
+
+print(
+    "✓ Persistent Conversation Memory"
+)
+
 print()
 
-print("Available tools:")
+print(
+    "Commands:"
+)
 
-print("1. Calculator")
-print("2. Date/Time")
-print("3. Text Analyzer")
-print("4. Weather")
+print(
+    "/clear  - Clear conversation memory"
+)
+
+print(
+    "/exit   - Exit application"
+)
 
 print()
-print("Type 'exit' to stop.")
-print()
 
+
+# ==================================================
+# Chat Loop
+# ==================================================
 
 while True:
 
-    user_input = input("You: ")
+    user_input = input(
+        "You: "
+    )
 
 
-    if user_input.lower() == "exit":
+    # --------------------------------------------------
+    # Exit
+    # --------------------------------------------------
+
+    if user_input.lower() == "/exit":
 
         print(
             "Goodbye!"
@@ -39,10 +76,33 @@ while True:
         break
 
 
+    # --------------------------------------------------
+    # Clear memory
+    # --------------------------------------------------
+
+    if user_input.lower() == "/clear":
+
+        clear_memory()
+
+        print(
+            "\nConversation memory cleared.\n"
+        )
+
+        continue
+
+
+    # --------------------------------------------------
+    # Empty input
+    # --------------------------------------------------
+
     if not user_input.strip():
 
         continue
 
+
+    # --------------------------------------------------
+    # Run Agent
+    # --------------------------------------------------
 
     try:
 
@@ -52,14 +112,28 @@ while True:
 
 
         print()
-        print("Agent:")
-        print(answer)
+
+        print(
+            "Agent:"
+        )
+
+        print(
+            answer
+        )
+
         print()
 
 
     except Exception as error:
 
         print()
-        print("Error:")
-        print(error)
+
+        print(
+            "Error:"
+        )
+
+        print(
+            error
+        )
+
         print()

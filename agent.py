@@ -9,6 +9,11 @@ from tools.registry import (
     execute_tool
 )
 
+from memory.conversation import (
+    load_memory,
+    save_memory
+)
+
 
 # ==================================================
 # Environment
@@ -39,44 +44,91 @@ MODEL = "openrouter/free"
 
 
 # ==================================================
-# Agent
+# System Prompt
 # ==================================================
 
-def run_agent(user_input):
+SYSTEM_MESSAGE = """
+You are an intelligent AI agent.
+
+You have access to several tools.
+
+Available capabilities include:
+
+- Mathematical calculations
+- Current date and time
+- Text analysis
+- Current weather
+
+Use the appropriate tool when needed.
+
+Never pretend that a tool was executed.
+
+Use previous conversation context when it is relevant.
+
+If the user refers to something discussed earlier,
+use the conversation history to understand the context.
+
+After receiving a tool result, use that information
+to answer the user.
+
+If no tool is required, answer normally.
+"""
+
+
+# ==================================================
+# Build Messages
+# ==================================================
+
+def build_messages():
+
+    memory = load_memory()
+
 
     messages = [
 
         {
             "role": "system",
-
-            "content": """
-You are an intelligent AI agent.
-
-You have access to tools.
-
-Use tools whenever they are useful.
-
-Never pretend that a tool was executed.
-
-After receiving the tool result, use that
-information to answer the user.
-
-If no tool is required, answer normally.
-"""
-        },
-
-        {
-            "role": "user",
-
-            "content": user_input
+            "content": SYSTEM_MESSAGE
         }
 
     ]
 
 
-    # ==================================================
+    # Add previous conversation
+
+    messages.extend(
+        memory
+    )
+
+
+    return messages
+
+
+# ==================================================
+# Agent
+# ==================================================
+
+def run_agent(user_input):
+
+    messages = build_messages()
+
+
+    # --------------------------------------------------
+    # Add user message
+    # --------------------------------------------------
+
+    messages.append({
+
+        "role": "user",
+
+        "content": user_input
+
+    })
+
+
+    # --------------------------------------------------
     # Agent Loop
-    # ==================================================
+    # --------------------------------------------------
 
     while True:
 
@@ -95,23 +147,38 @@ If no tool is required, answer normally.
 
 
         # ==================================================
-        # Final Answer
+        # No Tool Required
         # ==================================================
 
         if not message.tool_calls:
+
+            # ----------------------------------------------
+            # Save user + assistant conversation
+            # ----------------------------------------------
+
+            save_conversation(
+
+                user_input,
+
+                message.content
+
+            )
+
 
             return message.content
 
 
         # ==================================================
-        # Add assistant message
+        # Add Assistant Tool Request
         # ==================================================
 
-        messages.append(message)
+        messages.append(
+            message
+        )
 
 
         # ==================================================
-        # Process Tool Calls
+        # Execute Tools
         # ==================================================
 
         for tool_call in message.tool_calls:
@@ -122,11 +189,14 @@ If no tool is required, answer normally.
 
 
             arguments = json.loads(
+
                 tool_call.function.arguments
+
             )
 
 
             print()
+
             print(
                 f"[Agent → Tool: {tool_name}]"
             )
@@ -136,9 +206,9 @@ If no tool is required, answer normally.
             )
 
 
-            # ------------------------------------------
-            # Dynamic Tool Registry
-            # ------------------------------------------
+            # ----------------------------------------------
+            # Execute dynamically
+            # ----------------------------------------------
 
             result = execute_tool(
 
@@ -154,9 +224,9 @@ If no tool is required, answer normally.
             )
 
 
-            # ------------------------------------------
-            # Send result back to LLM
-            # ------------------------------------------
+            # ----------------------------------------------
+            # Add tool result
+            # ----------------------------------------------
 
             messages.append({
 
@@ -169,3 +239,42 @@ If no tool is required, answer normally.
                     json.dumps(result)
 
             })
+
+
+# ==================================================
+# Save Conversation
+# ==================================================
+
+def save_conversation(
+    user_input,
+    assistant_response
+):
+
+    memory = load_memory()
+
+
+    # Add user message
+
+    memory.append({
+
+        "role": "user",
+
+        "content": user_input
+
+    })
+
+
+    # Add assistant response
+
+    memory.append({
+
+        "role": "assistant",
+
+        "content": assistant_response
+
+    })
+
+
+    save_memory(
+        memory
+    )
