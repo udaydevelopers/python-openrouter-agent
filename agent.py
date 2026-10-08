@@ -15,171 +15,122 @@ from memory.conversation import (
 )
 
 
-# ==================================================
-# Environment
-# ==================================================
-
 load_dotenv()
 
 
-# ==================================================
-# OpenRouter Client
-# ==================================================
-
 client = OpenAI(
-
     base_url="https://openrouter.ai/api/v1",
-
     api_key=os.getenv(
         "OPENROUTER_API_KEY"
     )
 )
 
 
-# ==================================================
-# Model
-# ==================================================
-
 MODEL = "openrouter/free"
 
-
-# ==================================================
-# System Prompt
-# ==================================================
 
 SYSTEM_MESSAGE = """
 You are an intelligent AI agent.
 
 You have access to several tools.
 
-Available capabilities include:
+Available capabilities:
 
-- Mathematical calculations
-- Current date and time
-- Text analysis
-- Current weather
+1. Calculator
+2. Current date and time
+3. Text analysis
+4. Current weather
+5. Local document search
+6. Local vector database creation
 
-Use the appropriate tool when needed.
+IMPORTANT TOOL RULES:
+
+Use the calculator when mathematical calculations
+are required.
+
+Use the weather tool when the user asks about
+current weather.
+
+Use the date/time tool when the user asks for
+the current date or time.
+
+Use text analysis when the user asks to analyze
+text.
+
+Use search_documents when the user asks a question
+that may require information from the local
+knowledge base.
+
+Use build_vector_store when the local document
+database needs to be created or rebuilt.
+
+For knowledge-base questions:
+
+1. Search the documents.
+2. Read the retrieved information.
+3. Answer using the retrieved information.
+4. Do not invent information.
+5. If the documents do not contain the answer,
+   clearly say that the information was not found.
+
+Use previous conversation context when relevant.
 
 Never pretend that a tool was executed.
 
-Use previous conversation context when it is relevant.
-
-If the user refers to something discussed earlier,
-use the conversation history to understand the context.
-
 After receiving a tool result, use that information
-to answer the user.
+to produce the final answer.
 
-If no tool is required, answer normally.
+Give natural, human-sounding answers.
 """
 
-
-# ==================================================
-# Build Messages
-# ==================================================
 
 def build_messages():
 
     memory = load_memory()
 
-
     messages = [
-
         {
             "role": "system",
             "content": SYSTEM_MESSAGE
         }
-
     ]
 
-
-    # Add previous conversation
-
-    messages.extend(
-        memory
-    )
-
+    messages.extend(memory)
 
     return messages
 
-
-# ==================================================
-# Agent
-# ==================================================
 
 def run_agent(user_input):
 
     messages = build_messages()
 
-
-    # --------------------------------------------------
-    # Add user message
-    # --------------------------------------------------
-
     messages.append({
-
         "role": "user",
-
         "content": user_input
-
     })
-
-
-    # --------------------------------------------------
-    # Agent Loop
-    # --------------------------------------------------
 
     while True:
 
         response = client.chat.completions.create(
-
             model=MODEL,
-
             messages=messages,
-
             tools=TOOL_DEFINITIONS
-
         )
-
 
         message = response.choices[0].message
 
-
-        # ==================================================
-        # No Tool Required
-        # ==================================================
-
         if not message.tool_calls:
 
-            # ----------------------------------------------
-            # Save user + assistant conversation
-            # ----------------------------------------------
+            answer = message.content or ""
 
             save_conversation(
-
                 user_input,
-
-                message.content
-
+                answer
             )
 
+            return answer
 
-            return message.content
-
-
-        # ==================================================
-        # Add Assistant Tool Request
-        # ==================================================
-
-        messages.append(
-            message
-        )
-
-
-        # ==================================================
-        # Execute Tools
-        # ==================================================
+        messages.append(message)
 
         for tool_call in message.tool_calls:
 
@@ -187,16 +138,11 @@ def run_agent(user_input):
                 tool_call.function.name
             )
 
-
             arguments = json.loads(
-
                 tool_call.function.arguments
-
             )
 
-
             print()
-
             print(
                 f"[Agent → Tool: {tool_name}]"
             )
@@ -205,45 +151,24 @@ def run_agent(user_input):
                 f"[Arguments: {arguments}]"
             )
 
-
-            # ----------------------------------------------
-            # Execute dynamically
-            # ----------------------------------------------
-
             result = execute_tool(
-
                 tool_name,
-
                 arguments
-
             )
-
 
             print(
                 f"[Tool → Agent: {result}]"
             )
 
-
-            # ----------------------------------------------
-            # Add tool result
-            # ----------------------------------------------
-
             messages.append({
-
                 "role": "tool",
-
-                "tool_call_id":
-                    tool_call.id,
-
-                "content":
-                    json.dumps(result)
-
+                "tool_call_id": tool_call.id,
+                "content": json.dumps(
+                    result,
+                    ensure_ascii=False
+                )
             })
 
-
-# ==================================================
-# Save Conversation
-# ==================================================
 
 def save_conversation(
     user_input,
@@ -252,29 +177,14 @@ def save_conversation(
 
     memory = load_memory()
 
-
-    # Add user message
-
     memory.append({
-
         "role": "user",
-
         "content": user_input
-
     })
-
-
-    # Add assistant response
 
     memory.append({
-
         "role": "assistant",
-
         "content": assistant_response
-
     })
 
-
-    save_memory(
-        memory
-    )
+    save_memory(memory)

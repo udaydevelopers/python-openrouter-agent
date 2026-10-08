@@ -1,3 +1,6 @@
 openai
 python-dotenv
 requests
+lancedb
+sentence-transformers
+pyarrow

@@ -4,105 +4,88 @@ from memory.conversation import (
     clear_memory
 )
 
-
-# ==================================================
-# Header
-# ==================================================
-
-print("=" * 60)
-
-print(
-    "Python OpenRouter AI Agent - V4"
+from rag.vector_store import (
+    build_vector_store
 )
 
-print("=" * 60)
+
+print("=" * 65)
+print(
+    "Python OpenRouter AI Agent - V5"
+)
+print("=" * 65)
 
 print()
-
-print(
-    "Features:"
-)
-
-print(
-    "✓ Multiple Tools"
-)
-
-print(
-    "✓ Dynamic Tool Registry"
-)
-
-print(
-    "✓ Persistent Conversation Memory"
-)
-
+print("Features:")
+print("✓ Multiple Tools")
+print("✓ Dynamic Tool Registry")
+print("✓ Persistent Conversation Memory")
+print("✓ Local RAG")
+print("✓ LanceDB Vector Search")
+print("✓ Local Embeddings")
+print("✓ Weather API")
 print()
 
-print(
-    "Commands:"
-)
-
-print(
-    "/clear  - Clear conversation memory"
-)
-
-print(
-    "/exit   - Exit application"
-)
-
+print("Commands:")
+print("/build  - Build RAG vector database")
+print("/clear  - Clear conversation memory")
+print("/exit   - Exit application")
 print()
 
-
-# ==================================================
-# Chat Loop
-# ==================================================
 
 while True:
 
-    user_input = input(
-        "You: "
-    )
+    user_input = input("You: ").strip()
 
-
-    # --------------------------------------------------
-    # Exit
-    # --------------------------------------------------
+    if not user_input:
+        continue
 
     if user_input.lower() == "/exit":
 
-        print(
-            "Goodbye!"
-        )
+        print("Goodbye!")
 
         break
-
-
-    # --------------------------------------------------
-    # Clear memory
-    # --------------------------------------------------
 
     if user_input.lower() == "/clear":
 
         clear_memory()
 
+        print()
         print(
-            "\nConversation memory cleared.\n"
+            "Conversation memory cleared."
+        )
+        print()
+
+        continue
+
+    if user_input.lower() == "/build":
+
+        print()
+        print(
+            "Building vector database..."
         )
 
+        try:
+
+            result = build_vector_store()
+
+            print()
+            print(
+                "RAG:"
+            )
+            print(result)
+            print()
+
+        except Exception as error:
+
+            print()
+            print(
+                "RAG Error:"
+            )
+            print(error)
+            print()
+
         continue
-
-
-    # --------------------------------------------------
-    # Empty input
-    # --------------------------------------------------
-
-    if not user_input.strip():
-
-        continue
-
-
-    # --------------------------------------------------
-    # Run Agent
-    # --------------------------------------------------
 
     try:
 
@@ -110,30 +93,14 @@ while True:
             user_input
         )
 
-
         print()
-
-        print(
-            "Agent:"
-        )
-
-        print(
-            answer
-        )
-
+        print("Agent:")
+        print(answer)
         print()
-
 
     except Exception as error:
 
         print()
-
-        print(
-            "Error:"
-        )
-
-        print(
-            error
-        )
-
+        print("Error:")
+        print(error)
         print()

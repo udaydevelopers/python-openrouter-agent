@@ -38,3 +38,10 @@ htmlcov/
 
 # Agent memory
 memory/conversation.json
+
+# Vector database
+db/
+
+# Local documents
+documents/*
+!documents/sample.txt

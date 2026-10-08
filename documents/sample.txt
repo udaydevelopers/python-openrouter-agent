@@ -1,0 +1,24 @@
+Python AI Agent Project
+
+This project is a Python-based AI agent using OpenRouter.
+
+The agent supports multiple tools including calculator,
+date and time, text analysis and weather.
+
+Version 5 introduces Retrieval Augmented Generation (RAG).
+
+The RAG system uses local document files and LanceDB
+for vector search.
+
+The project uses the all-MiniLM-L6-v2 embedding model
+for local text embeddings.
+
+OpenRouter is used for the language model.
+
+The vector database is stored locally inside the db folder.
+
+Documents used by the RAG system are stored inside the
+documents folder.
+
+The agent can search the knowledge base and use retrieved
+information to answer user questions.
