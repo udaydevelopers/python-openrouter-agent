@@ -14,6 +14,11 @@ from memory.conversation import (
     save_memory
 )
 
+from memory.facts import (
+    get_facts,
+    add_fact
+)
+
 
 load_dotenv()
 
@@ -42,8 +47,10 @@ Available capabilities:
 4. Current weather
 5. Local document search
 6. Local vector database creation
+7. Conversation memory search
+8. Long-term user facts
 
-IMPORTANT TOOL RULES:
+TOOL USAGE RULES:
 
 Use the calculator when mathematical calculations
 are required.
@@ -57,21 +64,37 @@ the current date or time.
 Use text analysis when the user asks to analyze
 text.
 
-Use search_documents when the user asks a question
-that may require information from the local
-knowledge base.
+Use search_documents when the question requires
+information from the local knowledge base.
 
-Use build_vector_store when the local document
-database needs to be created or rebuilt.
+Use build_vector_store when documents need to be
+indexed into the vector database.
 
-For knowledge-base questions:
+Use memory_search when the user asks about something
+from a previous conversation.
 
-1. Search the documents.
-2. Read the retrieved information.
-3. Answer using the retrieved information.
-4. Do not invent information.
-5. If the documents do not contain the answer,
-   clearly say that the information was not found.
+Examples:
+
+"What is my name?"
+
+"What did I tell you earlier?"
+
+"What did we discuss about Python?"
+
+"Do you remember my previous question?"
+
+Use stored long-term facts when they are relevant.
+
+IMPORTANT:
+
+Do not invent memories or user facts.
+
+If the requested information is not available in
+memory, clearly say that you don't have that
+information.
+
+Use RAG information only when it comes from the
+retrieved documents.
 
 Use previous conversation context when relevant.
 
@@ -84,7 +107,37 @@ Give natural, human-sounding answers.
 """
 
 
+def extract_facts(user_input):
+    """
+    Basic V6 long-term fact extraction.
+
+    This version detects a few common statements
+    and stores the complete user message as a fact.
+    """
+
+    patterns = [
+        "my name is",
+        "i live in",
+        "my favorite",
+        "i work as",
+        "i am"
+    ]
+
+    text = user_input.lower()
+
+    for pattern in patterns:
+
+        if pattern in text:
+
+            add_fact(user_input)
+
+            break
+
+
 def build_messages():
+    """
+    Build the messages sent to the LLM.
+    """
 
     memory = load_memory()
 
@@ -95,15 +148,42 @@ def build_messages():
         }
     ]
 
+    # Add long-term facts
+    facts = get_facts()
+
+    if facts:
+
+        fact_text = "\n".join(
+            f"- {fact}"
+            for fact in facts
+        )
+
+        messages.append({
+            "role": "system",
+            "content": (
+                "Known user facts:\n"
+                f"{fact_text}"
+            )
+        })
+
+    # Add previous conversation
     messages.extend(memory)
 
     return messages
 
 
 def run_agent(user_input):
+    """
+    Run the AI agent.
+    """
 
+    # Store potential long-term facts
+    extract_facts(user_input)
+
+    # Build conversation context
     messages = build_messages()
 
+    # Add current user message
     messages.append({
         "role": "user",
         "content": user_input
@@ -119,6 +199,10 @@ def run_agent(user_input):
 
         message = response.choices[0].message
 
+        # -------------------------------------------------
+        # No tool required
+        # -------------------------------------------------
+
         if not message.tool_calls:
 
             answer = message.content or ""
@@ -130,6 +214,10 @@ def run_agent(user_input):
 
             return answer
 
+        # -------------------------------------------------
+        # Tool call requested
+        # -------------------------------------------------
+
         messages.append(message)
 
         for tool_call in message.tool_calls:
@@ -138,9 +226,15 @@ def run_agent(user_input):
                 tool_call.function.name
             )
 
-            arguments = json.loads(
-                tool_call.function.arguments
-            )
+            try:
+
+                arguments = json.loads(
+                    tool_call.function.arguments
+                )
+
+            except json.JSONDecodeError:
+
+                arguments = {}
 
             print()
             print(
@@ -151,6 +245,7 @@ def run_agent(user_input):
                 f"[Arguments: {arguments}]"
             )
 
+            # Execute tool
             result = execute_tool(
                 tool_name,
                 arguments
@@ -160,6 +255,7 @@ def run_agent(user_input):
                 f"[Tool → Agent: {result}]"
             )
 
+            # Add tool result
             messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call.id,
@@ -174,6 +270,10 @@ def save_conversation(
     user_input,
     assistant_response
 ):
+    """
+    Save the final user/assistant conversation
+    to persistent memory.
+    """
 
     memory = load_memory()
 

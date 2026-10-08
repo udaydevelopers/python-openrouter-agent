@@ -45,3 +45,5 @@ db/
 # Local documents
 documents/*
 !documents/sample.txt
+
+memory/facts.json

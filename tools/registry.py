@@ -5,7 +5,9 @@ from tools.weather import get_weather
 
 from rag.search import search_documents
 from rag.vector_store import build_vector_store
-
+from tools.memory_tool import (
+    memory_search
+)
 
 TOOL_REGISTRY = {
     "calculate": calculate,
@@ -13,7 +15,8 @@ TOOL_REGISTRY = {
     "analyze_text": analyze_text,
     "get_weather": get_weather,
     "search_documents": search_documents,
-    "build_vector_store": build_vector_store
+    "build_vector_store": build_vector_store,
+    "memory_search": memory_search
 }
 
 
@@ -148,6 +151,35 @@ TOOL_DEFINITIONS = [
             "parameters": {
                 "type": "object",
                 "properties": {}
+            }
+        }
+    },
+    {
+        "type": "function",
+
+        "function": {
+
+            "name": "memory_search",
+
+            "description":
+                "Search previous conversations.",
+
+            "parameters": {
+
+                "type": "object",
+
+                "properties": {
+
+                    "query": {
+                        "type": "string"
+                    },
+
+                    "limit": {
+                        "type": "integer"
+                    }
+                },
+
+                "required": ["query"]
             }
         }
     }
