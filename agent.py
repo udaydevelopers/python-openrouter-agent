@@ -19,6 +19,8 @@ from memory.facts import (
     add_fact
 )
 
+from planner import create_plan
+
 
 load_dotenv()
 
@@ -37,82 +39,41 @@ MODEL = "openrouter/free"
 SYSTEM_MESSAGE = """
 You are an intelligent AI agent.
 
-You have access to several tools.
+You have access to these capabilities:
 
-Available capabilities:
+- Calculator
+- Date and time
+- Text analysis
+- Weather
+- Local document search
+- Vector database
+- Conversation memory
+- Long-term user facts
 
-1. Calculator
-2. Current date and time
-3. Text analysis
-4. Current weather
-5. Local document search
-6. Local vector database creation
-7. Conversation memory search
-8. Long-term user facts
+Follow the plan provided by the application.
 
-TOOL USAGE RULES:
+Use tools when required.
 
-Use the calculator when mathematical calculations
-are required.
+Do not invent tool results.
 
-Use the weather tool when the user asks about
-current weather.
+Do not invent memories.
 
-Use the date/time tool when the user asks for
-the current date or time.
+For document questions, use the RAG search tool.
 
-Use text analysis when the user asks to analyze
-text.
+For previous conversation questions, use memory.
 
-Use search_documents when the question requires
-information from the local knowledge base.
+Use known user facts when relevant.
 
-Use build_vector_store when documents need to be
-indexed into the vector database.
+After tools return results, give a clear,
+natural and concise answer.
 
-Use memory_search when the user asks about something
-from a previous conversation.
-
-Examples:
-
-"What is my name?"
-
-"What did I tell you earlier?"
-
-"What did we discuss about Python?"
-
-"Do you remember my previous question?"
-
-Use stored long-term facts when they are relevant.
-
-IMPORTANT:
-
-Do not invent memories or user facts.
-
-If the requested information is not available in
-memory, clearly say that you don't have that
-information.
-
-Use RAG information only when it comes from the
-retrieved documents.
-
-Use previous conversation context when relevant.
-
-Never pretend that a tool was executed.
-
-After receiving a tool result, use that information
-to produce the final answer.
-
-Give natural, human-sounding answers.
+Do not mention internal tool names unless useful.
 """
 
 
 def extract_facts(user_input):
     """
-    Basic V6 long-term fact extraction.
-
-    This version detects a few common statements
-    and stores the complete user message as a fact.
+    Store simple user facts.
     """
 
     patterns = [
@@ -135,9 +96,6 @@ def extract_facts(user_input):
 
 
 def build_messages():
-    """
-    Build the messages sent to the LLM.
-    """
 
     memory = load_memory()
 
@@ -160,33 +118,47 @@ def build_messages():
 
         messages.append({
             "role": "system",
-            "content": (
+            "content":
                 "Known user facts:\n"
-                f"{fact_text}"
-            )
+                + fact_text
         })
 
-    # Add previous conversation
+    # Add conversation memory
     messages.extend(memory)
 
     return messages
 
 
 def run_agent(user_input):
-    """
-    Run the AI agent.
-    """
 
-    # Store potential long-term facts
+    # Save possible user fact
     extract_facts(user_input)
 
-    # Build conversation context
+    # Create plan
+    plan = create_plan(user_input)
+
+    print()
+    print(
+        f"[Plan: {' → '.join(plan)}]"
+    )
+
     messages = build_messages()
 
-    # Add current user message
     messages.append({
         "role": "user",
         "content": user_input
+    })
+
+    # Tell the LLM about the plan
+    messages.append({
+        "role": "system",
+        "content": (
+            "Execution plan:\n"
+            + "\n".join(
+                f"{index + 1}. {step}"
+                for index, step in enumerate(plan)
+            )
+        )
     })
 
     while True:
@@ -199,10 +171,7 @@ def run_agent(user_input):
 
         message = response.choices[0].message
 
-        # -------------------------------------------------
-        # No tool required
-        # -------------------------------------------------
-
+        # Final answer
         if not message.tool_calls:
 
             answer = message.content or ""
@@ -214,12 +183,10 @@ def run_agent(user_input):
 
             return answer
 
-        # -------------------------------------------------
-        # Tool call requested
-        # -------------------------------------------------
-
+        # Add assistant tool request
         messages.append(message)
 
+        # Execute tools
         for tool_call in message.tool_calls:
 
             tool_name = (
@@ -236,7 +203,6 @@ def run_agent(user_input):
 
                 arguments = {}
 
-            print()
             print(
                 f"[Agent → Tool: {tool_name}]"
             )
@@ -245,7 +211,6 @@ def run_agent(user_input):
                 f"[Arguments: {arguments}]"
             )
 
-            # Execute tool
             result = execute_tool(
                 tool_name,
                 arguments
@@ -255,7 +220,6 @@ def run_agent(user_input):
                 f"[Tool → Agent: {result}]"
             )
 
-            # Add tool result
             messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call.id,
@@ -270,10 +234,6 @@ def save_conversation(
     user_input,
     assistant_response
 ):
-    """
-    Save the final user/assistant conversation
-    to persistent memory.
-    """
 
     memory = load_memory()
 
