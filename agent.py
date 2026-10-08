@@ -39,42 +39,59 @@ MODEL = "openrouter/free"
 SYSTEM_MESSAGE = """
 You are an intelligent AI agent.
 
-You have access to these capabilities:
+You can use:
 
 - Calculator
 - Date and time
 - Text analysis
 - Weather
 - Local document search
-- Vector database
+- LanceDB vector database
 - Conversation memory
 - Long-term user facts
+- Web search
 
-Follow the plan provided by the application.
+TOOL RULES:
 
-Use tools when required.
+Use calculator for mathematical calculations.
 
-Do not invent tool results.
+Use weather for current weather.
+
+Use date/time for current date or time.
+
+Use memory_search when the user asks about
+previous conversations or remembered information.
+
+Use search_documents when the answer may exist
+in the local knowledge base.
+
+Use build_vector_store to create or rebuild
+the local vector database.
+
+Use web_search for current, recent, online,
+external or live information.
+
+Do not invent search results.
 
 Do not invent memories.
 
-For document questions, use the RAG search tool.
+Do not invent information from documents.
 
-For previous conversation questions, use memory.
+If a tool returns no useful information,
+say so clearly.
 
-Use known user facts when relevant.
+Use the execution plan as guidance.
 
-After tools return results, give a clear,
-natural and concise answer.
+You may use more than one tool when necessary.
 
-Do not mention internal tool names unless useful.
+After receiving tool results, combine the
+information and provide a clear final answer.
+
+Keep answers natural and easy to understand.
 """
 
 
 def extract_facts(user_input):
-    """
-    Store simple user facts.
-    """
 
     patterns = [
         "my name is",
@@ -90,7 +107,9 @@ def extract_facts(user_input):
 
         if pattern in text:
 
-            add_fact(user_input)
+            add_fact(
+                user_input
+            )
 
             break
 
@@ -106,7 +125,6 @@ def build_messages():
         }
     ]
 
-    # Add long-term facts
     facts = get_facts()
 
     if facts:
@@ -118,28 +136,35 @@ def build_messages():
 
         messages.append({
             "role": "system",
-            "content":
+            "content": (
                 "Known user facts:\n"
                 + fact_text
+            )
         })
 
-    # Add conversation memory
-    messages.extend(memory)
+    messages.extend(
+        memory
+    )
 
     return messages
 
 
 def run_agent(user_input):
 
-    # Save possible user fact
-    extract_facts(user_input)
+    extract_facts(
+        user_input
+    )
 
-    # Create plan
-    plan = create_plan(user_input)
+    plan = create_plan(
+        user_input
+    )
 
     print()
+
     print(
-        f"[Plan: {' → '.join(plan)}]"
+        "[Plan: "
+        + " → ".join(plan)
+        + "]"
     )
 
     messages = build_messages()
@@ -149,14 +174,14 @@ def run_agent(user_input):
         "content": user_input
     })
 
-    # Tell the LLM about the plan
     messages.append({
         "role": "system",
         "content": (
             "Execution plan:\n"
             + "\n".join(
                 f"{index + 1}. {step}"
-                for index, step in enumerate(plan)
+                for index, step
+                in enumerate(plan)
             )
         )
     })
@@ -169,12 +194,17 @@ def run_agent(user_input):
             tools=TOOL_DEFINITIONS
         )
 
-        message = response.choices[0].message
+        message = (
+            response.choices[0].message
+        )
 
         # Final answer
         if not message.tool_calls:
 
-            answer = message.content or ""
+            answer = (
+                message.content
+                or ""
+            )
 
             save_conversation(
                 user_input,
@@ -183,11 +213,15 @@ def run_agent(user_input):
 
             return answer
 
-        # Add assistant tool request
-        messages.append(message)
+        # Add tool request
+        messages.append(
+            message
+        )
 
         # Execute tools
-        for tool_call in message.tool_calls:
+        for tool_call in (
+            message.tool_calls
+        ):
 
             tool_name = (
                 tool_call.function.name
@@ -204,11 +238,13 @@ def run_agent(user_input):
                 arguments = {}
 
             print(
-                f"[Agent → Tool: {tool_name}]"
+                f"[Agent → Tool: "
+                f"{tool_name}]"
             )
 
             print(
-                f"[Arguments: {arguments}]"
+                f"[Arguments: "
+                f"{arguments}]"
             )
 
             result = execute_tool(
@@ -217,7 +253,8 @@ def run_agent(user_input):
             )
 
             print(
-                f"[Tool → Agent: {result}]"
+                f"[Tool → Agent: "
+                f"{result}]"
             )
 
             messages.append({
@@ -247,4 +284,6 @@ def save_conversation(
         "content": assistant_response
     })
 
-    save_memory(memory)
+    save_memory(
+        memory
+    )

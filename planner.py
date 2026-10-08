@@ -7,7 +7,7 @@ def create_plan(user_input):
 
     steps = []
 
-    # Math
+    # Calculator
     math_words = [
         "calculate",
         "plus",
@@ -19,7 +19,10 @@ def create_plan(user_input):
         "/"
     ]
 
-    if any(word in text for word in math_words):
+    if any(
+        word in text
+        for word in math_words
+    ):
         steps.append("calculator")
 
     # Weather
@@ -33,7 +36,7 @@ def create_plan(user_input):
     ):
         steps.append("weather")
 
-    # Date/time
+    # Date and time
     if any(
         word in text
         for word in [
@@ -63,14 +66,35 @@ def create_plan(user_input):
         word in text
         for word in [
             "document",
+            "documents",
             "file",
-            "project",
-            "knowledge base"
+            "files",
+            "knowledge base",
+            "according to the document"
         ]
     ):
         steps.append("rag")
 
-    # No special tool
+    # Web
+    web_words = [
+        "latest",
+        "current",
+        "news",
+        "today",
+        "recent",
+        "search",
+        "online",
+        "internet",
+        "website",
+        "web"
+    ]
+
+    if any(
+        word in text
+        for word in web_words
+    ):
+        steps.append("web")
+
     if not steps:
         steps.append("llm")
 

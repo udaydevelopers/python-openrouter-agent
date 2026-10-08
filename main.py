@@ -14,9 +14,9 @@ from rag.vector_store import (
 )
 
 
-print("=" * 65)
-print("Python OpenRouter AI Agent - V7")
-print("=" * 65)
+print("=" * 70)
+print("Python OpenRouter AI Agent - V8")
+print("=" * 70)
 
 print()
 print("Features:")
@@ -27,8 +27,10 @@ print("✓ Long-Term Facts")
 print("✓ Memory Search")
 print("✓ Local RAG")
 print("✓ LanceDB")
+print("✓ Local Embeddings")
 print("✓ Weather")
-print("✓ Simple Agent Planner")
+print("✓ Agent Planner")
+print("✓ Web Search")
 print()
 
 print("Commands:")
@@ -62,20 +64,16 @@ while True:
 
     command = user_input.lower()
 
-    # -------------------------
-    # EXIT
-    # -------------------------
-
+    # Exit
     if command == "/exit":
 
-        print("Goodbye!")
+        print(
+            "Goodbye!"
+        )
 
         break
 
-    # -------------------------
-    # CLEAR CONVERSATION
-    # -------------------------
-
+    # Clear conversation
     if command == "/clear":
 
         clear_memory()
@@ -88,15 +86,17 @@ while True:
 
         continue
 
-    # -------------------------
-    # SHOW FACTS
-    # -------------------------
-
+    # Show facts
     if command == "/facts":
 
         print()
-        print("Stored User Facts:")
-        print("-" * 40)
+        print(
+            "Stored User Facts:"
+        )
+
+        print(
+            "-" * 40
+        )
 
         try:
 
@@ -125,16 +125,15 @@ while True:
                 "Memory Error:"
             )
 
-            print(error)
+            print(
+                error
+            )
 
         print()
 
         continue
 
-    # -------------------------
-    # CLEAR FACTS
-    # -------------------------
-
+    # Clear facts
     if command == "/clearfacts":
 
         clear_facts()
@@ -147,10 +146,7 @@ while True:
 
         continue
 
-    # -------------------------
-    # BUILD RAG
-    # -------------------------
-
+    # Build RAG
     if command == "/build":
 
         print()
@@ -160,9 +156,13 @@ while True:
 
         try:
 
-            result = build_vector_store()
+            result = (
+                build_vector_store()
+            )
 
-            if result.get("success"):
+            if result.get(
+                "success"
+            ):
 
                 print(
                     "✓ Vector database built."
@@ -203,16 +203,15 @@ while True:
                 "RAG Error:"
             )
 
-            print(error)
+            print(
+                error
+            )
 
         print()
 
         continue
 
-    # -------------------------
-    # NORMAL AGENT
-    # -------------------------
-
+    # Normal agent
     try:
 
         answer = run_agent(
@@ -220,14 +219,25 @@ while True:
         )
 
         print()
-        print("Agent:")
-        print(answer)
+        print(
+            "Agent:"
+        )
+
+        print(
+            answer
+        )
+
         print()
 
     except Exception as error:
 
         print()
-        print("Agent Error:")
-        print(error)
+        print(
+            "Agent Error:"
+        )
+
+        print(
+            error
+        )
 
         print()
